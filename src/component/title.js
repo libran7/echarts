@@ -1,284 +1,188 @@
-/**
- * echarts组件：图表标题
- *
- * @desc echarts基于Canvas，纯Javascript图表库，提供直观，生动，可交互，可个性化定制的数据统计图表。
- * @author Kener (@Kener-林峰, linzhifeng@baidu.com)
- *
- */
-define(function (require) {
-    /**
-     * 构造函数
-     * @param {Object} messageCenter echart消息中心
-     * @param {ZRender} zr zrender实例
-     * @param {Object} option 图表参数
-     */
-    function Title(messageCenter, zr, option) {
-        var Base = require('./base');
-        Base.call(this, zr);
+define(function(require) {
 
-        var ecConfig = require('../config');
-        var zrArea = require('zrender/tool/area');
-        var zrUtil = require('zrender/tool/util');
+    'use strict';
 
-        var self = this;
-        self.type = ecConfig.COMPONENT_TYPE_TITLE;
+    var echarts = require('../echarts');
+    var graphic = require('../util/graphic');
+    var layout = require('../util/layout');
 
-        var titleOption;                       // 标题选项，共享数据源
-        var _zlevelBase = self.getZlevelBase();
+    // Model
+    echarts.extendComponentModel({
 
-        var _itemGroupLocation = {};    // 标题元素组的位置参数，通过计算所得x, y, width, height
+        type: 'title',
 
-        function _buildShape() {
-            _itemGroupLocation = _getItemGroupLocation();
+        defaultOption: {
+            // 一级层叠
+            zlevel: 0,
+            // 二级层叠
+            z: 6,
+            show: true,
 
-            _buildBackground();
-            _buildItem();
+            text: '',
+            // 超链接跳转
+            // link: null,
+            // 仅支持self | blank
+            target: 'blank',
+            subtext: '',
 
-            for (var i = 0, l = self.shapeList.length; i < l; i++) {
-                self.shapeList[i].id = zr.newShapeId(self.type);
-                zr.addShape(self.shapeList[i]);
+            // 超链接跳转
+            // sublink: null,
+            // 仅支持self | blank
+            subtarget: 'blank',
+
+            // 'center' ¦ 'left' ¦ 'right'
+            // ¦ {number}（x坐标，单位px）
+            left: 'left',
+            // 'top' ¦ 'bottom' ¦ 'center'
+            // ¦ {number}（y坐标，单位px）
+            top: 'top',
+
+            // 水平对齐
+            // 'auto' | 'left' | 'right'
+            // 默认根据 x 的位置判断是左对齐还是右对齐
+            //textAlign: null
+
+            backgroundColor: 'rgba(0,0,0,0)',
+
+            // 标题边框颜色
+            borderColor: '#ccc',
+
+            // 标题边框线宽，单位px，默认为0（无边框）
+            borderWidth: 0,
+
+            // 标题内边距，单位px，默认各方向内边距为5，
+            // 接受数组分别设定上右下左边距，同css
+            padding: 5,
+
+            // 主副标题纵向间隔，单位px，默认为10，
+            itemGap: 10,
+            textStyle: {
+                fontSize: 18,
+                fontWeight: 'bolder',
+                // 主标题文字颜色
+                color: '#333'
+            },
+            subtextStyle: {
+                // 副标题文字颜色
+                color: '#aaa'
             }
         }
+    });
 
-        /**
-         * 构建所有标题元素
-         */
-        function _buildItem() {
-            var text = titleOption.text;
-            var link = titleOption.link;
-            var subtext = titleOption.subtext;
-            var sublink = titleOption.sublink;
-            var font = self.getFont(titleOption.textStyle);
-            var subfont = self.getFont(titleOption.subtextStyle);
-            
-            var x = _itemGroupLocation.x;
-            var y = _itemGroupLocation.y;
-            var width = _itemGroupLocation.width;
-            var height = _itemGroupLocation.height;
-            
-            var textShape = {
-                shape : 'text',
-                zlevel : _zlevelBase,
-                style : {
-                    y : y,
-                    color : titleOption.textStyle.color,
-                    text: text,
-                    textFont: font,
+    // View
+    echarts.extendComponentView({
+
+        type: 'title',
+
+        render: function (titleModel, ecModel, api) {
+            this.group.removeAll();
+
+            if (!titleModel.get('show')) {
+                return;
+            }
+
+            var group = this.group;
+
+            var textStyleModel = titleModel.getModel('textStyle');
+            var subtextStyleModel = titleModel.getModel('subtextStyle');
+
+            var textAlign = titleModel.get('textAlign');
+
+            var textEl = new graphic.Text({
+                style: {
+                    text: titleModel.get('text'),
+                    textFont: textStyleModel.getFont(),
+                    fill: textStyleModel.getTextColor(),
                     textBaseline: 'top'
                 },
-                hoverable: false
-            };
-            if (link) {
-                textShape.hoverable = true;
-                textShape.clickable = true;
-                textShape.onclick = function(){
-                    window.open(link);
-                };
-            }
-            
-            var subtextShape = {
-                shape : 'text',
-                zlevel : _zlevelBase,
-                style : {
-                    y : y + height,
-                    color : titleOption.subtextStyle.color,
-                    text: subtext,
-                    textFont: subfont,
-                    textBaseline: 'bottom'
-                },
-                hoverable: false
-            };
-            if (sublink) {
-                subtextShape.hoverable = true;
-                subtextShape.clickable = true;
-                subtextShape.onclick = function(){
-                    window.open(sublink);
-                };
-            }
-
-            
-
-            switch (titleOption.x) {
-                case 'center' :
-                    textShape.style.x = subtextShape.style.x = x + width / 2;
-                    textShape.style.textAlign = subtextShape.style.textAlign 
-                                              = 'center';
-                    break;
-                case 'left' :
-                    textShape.style.x = subtextShape.style.x = x;
-                    textShape.style.textAlign = subtextShape.style.textAlign 
-                                              = 'left';
-                    break;
-                case 'right' :
-                    textShape.style.x = subtextShape.style.x = x + width;
-                    textShape.style.textAlign = subtextShape.style.textAlign 
-                                              = 'right';
-                    break;
-                default :
-                    x = titleOption.x - 0;
-                    x = isNaN(x) ? 0 : x;
-                    textShape.style.x = subtextShape.style.x = x;
-                    break;
-            }
-            
-            if (titleOption.textAlign) {
-                textShape.style.textAlign = subtextShape.style.textAlign 
-                                          = titleOption.textAlign;
-            }
-
-            self.shapeList.push(textShape);
-            subtext !== '' && self.shapeList.push(subtextShape);
-        }
-
-        function _buildBackground() {
-            var pTop = titleOption.padding[0];
-            var pRight = titleOption.padding[1];
-            var pBottom = titleOption.padding[2];
-            var pLeft = titleOption.padding[3];
-
-            self.shapeList.push({
-                shape : 'rectangle',
-                zlevel : _zlevelBase,
-                hoverable :false,
-                style : {
-                    x : _itemGroupLocation.x - pLeft,
-                    y : _itemGroupLocation.y - pTop,
-                    width : _itemGroupLocation.width + pLeft + pRight,
-                    height : _itemGroupLocation.height + pTop + pBottom,
-                    brushType : titleOption.borderWidth === 0
-                                ? 'fill' : 'both',
-                    color : titleOption.backgroundColor,
-                    strokeColor : titleOption.borderColor,
-                    lineWidth : titleOption.borderWidth
-                }
+                z2: 10
             });
-        }
 
-        /**
-         * 根据选项计算标题实体的位置坐标
-         */
-        function _getItemGroupLocation() {
-            var text = titleOption.text;
-            var subtext = titleOption.subtext;
-            var font = self.getFont(titleOption.textStyle);
-            var subfont = self.getFont(titleOption.subtextStyle);
-            
-            var totalWidth = Math.max(
-                    zrArea.getTextWidth(text, font),
-                    zrArea.getTextWidth(subtext, subfont)
-                );
-            var totalHeight = zrArea.getTextWidth('国', font)
-                              + (subtext === ''
-                                 ? 0
-                                 : (titleOption.itemGap
-                                    + zrArea.getTextWidth('国', subfont))
-                                );
+            var textRect = textEl.getBoundingRect();
 
-            var x;
-            var zrWidth = zr.getWidth();
-            switch (titleOption.x) {
-                case 'center' :
-                    x = Math.floor((zrWidth - totalWidth) / 2);
-                    break;
-                case 'left' :
-                    x = titleOption.padding[3] + titleOption.borderWidth;
-                    break;
-                case 'right' :
-                    x = zrWidth
-                        - totalWidth
-                        - titleOption.padding[1]
-                        - titleOption.borderWidth;
-                    break;
-                default :
-                    x = titleOption.x - 0;
-                    x = isNaN(x) ? 0 : x;
-                    break;
+            var subText = titleModel.get('subtext');
+            var subTextEl = new graphic.Text({
+                style: {
+                    text: subText,
+                    textFont: subtextStyleModel.getFont(),
+                    fill: subtextStyleModel.getTextColor(),
+                    y: textRect.height + titleModel.get('itemGap'),
+                    textBaseline: 'top'
+                },
+                z2: 10
+            });
+
+            var link = titleModel.get('link');
+            var sublink = titleModel.get('sublink');
+
+            textEl.silent = !link;
+            subTextEl.silent = !sublink;
+
+            if (link) {
+                textEl.on('click', function () {
+                    window.open(link, titleModel.get('target'));
+                });
+            }
+            if (sublink) {
+                subTextEl.on('click', function () {
+                    window.open(sublink, titleModel.get('subtarget'));
+                });
             }
 
-            var y;
-            var zrHeight = zr.getHeight();
-            switch (titleOption.y) {
-                case 'top' :
-                    y = titleOption.padding[0] + titleOption.borderWidth;
-                    break;
-                case 'bottom' :
-                    y = zrHeight
-                        - totalHeight
-                        - titleOption.padding[2]
-                        - titleOption.borderWidth;
-                    break;
-                case 'center' :
-                    y = Math.floor((zrHeight - totalHeight) / 2);
-                    break;
-                default :
-                    y = titleOption.y - 0;
-                    y = isNaN(y) ? 0 : y;
-                    break;
+            group.add(textEl);
+            subText && group.add(subTextEl);
+            // If no subText, but add subTextEl, there will be an empty line.
+
+            var groupRect = group.getBoundingRect();
+            var layoutOption = titleModel.getBoxLayoutParams();
+            layoutOption.width = groupRect.width;
+            layoutOption.height = groupRect.height;
+            var layoutRect = layout.getLayoutRect(
+                layoutOption, {
+                    width: api.getWidth(),
+                    height: api.getHeight()
+                }, titleModel.get('padding')
+            );
+            // Adjust text align based on position
+            if (!textAlign) {
+                var p = layoutRect.x / api.getWidth();
+                var p2 = (layoutRect.x + layoutRect.width) / api.getWidth();
+
+                if (p < 0.2) {
+                    textAlign = 'left';
+                }
+                else if (p2 > 0.8) {
+                    layoutRect.x += layoutRect.width;
+                    textAlign = 'right';
+                }
+                else {
+                    layoutRect.x += layoutRect.width / 2;
+                    textAlign = 'center';
+                }
             }
+            group.position = [layoutRect.x, layoutRect.y];
+            textEl.setStyle('textAlign', textAlign);
+            subTextEl.setStyle('textAlign', textAlign);
 
-            return {
-                x : x,
-                y : y,
-                width : totalWidth,
-                height : totalHeight
-            };
+            // Render background
+            // Get groupRect again because textAlign has been changed
+            groupRect = group.getBoundingRect();
+            var padding = layoutRect.margin;
+            var style = titleModel.getItemStyle(['color', 'opacity']);
+            style.fill = titleModel.get('backgroundColor');
+            var rect = new graphic.Rect({
+                shape: {
+                    x: groupRect.x - padding[3],
+                    y: groupRect.y - padding[0],
+                    width: groupRect.width + padding[1] + padding[3],
+                    height: groupRect.height + padding[0] + padding[2]
+                },
+                style: style,
+                silent: true
+            });
+            graphic.subPixelOptimizeRect(rect);
+
+            group.add(rect);
         }
-
-        function init(newOption) {
-            refresh(newOption);
-        }
-        
-        /**
-         * 刷新
-         */
-        function refresh(newOption) {
-            if (newOption) {
-                option = newOption;
-
-                option.title = self.reformOption(option.title);
-                // 补全padding属性
-                option.title.padding = self.reformCssArray(
-                    option.title.padding
-                );
-    
-                titleOption = option.title;
-                titleOption.textStyle = zrUtil.merge(
-                    titleOption.textStyle,
-                    ecConfig.textStyle,
-                    {
-                        'overwrite': false,
-                        'recursive': false
-                    }
-                );
-                titleOption.subtextStyle = zrUtil.merge(
-                    titleOption.subtextStyle,
-                    ecConfig.textStyle,
-                    {
-                        'overwrite': false,
-                        'recursive': false
-                    }
-                );
-    
-                self.clear();
-                _buildShape();
-            }
-        }
-        
-        function resize() {
-             self.clear();
-            _buildShape();
-        }
-
-        self.init = init;
-        self.refresh = refresh;
-        self.resize = resize;
-
-        init(option);
-    }
-    
-    require('../component').define('title', Title);
-    
-    return Title;
+    });
 });
-
-
